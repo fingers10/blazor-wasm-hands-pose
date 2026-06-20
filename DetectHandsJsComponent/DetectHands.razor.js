@@ -37,9 +37,9 @@ export async function onInit(component) {
     const { getAssemblyExports } = await globalThis.getDotnetRuntime(0);
     detectHandsExports = await getAssemblyExports("DetectHandsJsComponent.dll");
 
-    await insertGlobalScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js')
-    await insertGlobalScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js')
-    await insertGlobalScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js')
+    await insertGlobalScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@latest/camera_utils.js')
+    await insertGlobalScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@latest/drawing_utils.js')
+    await insertGlobalScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands@latest/hands.js')
     const hands = new mpHands.Hands({
         locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${mpHands.VERSION}/${file}`;
