@@ -1,0 +1,43 @@
+<div>
+    Face recognition via <a href="https://github.com/justadudewhohacks/face-api.js" target="_blank">face-api.js</a>.
+    Please allow your camera.
+
+    <div class="face-container">
+        <video class="face_video" autoplay muted playsinline></video>
+        <canvas class="face_canvas"></canvas>
+        <div class="loading">
+            <div class="spinner"></div>
+            <div class="message">
+                Loading face recognition models&hellip;
+            </div>
+        </div>
+    </div>
+
+    @if (FaceDetected)
+    {
+        <div class="alert alert-success mt-2">&#x1F9D1; Face detected</div>
+    }
+    else
+    {
+        <div class="alert alert-warning mt-2">No face detected &mdash; please look at the camera</div>
+    }
+
+    @if (Mode == "enroll")
+    {
+        <button class="btn btn-primary mt-2" @onclick="CaptureDescriptor">
+            &#x1F4F8; Capture Face
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Mode { get; set; } = "enroll";
+
+    [Parameter]
+    public EventCallback<DescriptorResult> OnDescriptorCaptured { get; set; }
+
+    public DescriptorResult? LatestDetection { get; set; }
+
+    public bool FaceDetected { get; set; }
+}

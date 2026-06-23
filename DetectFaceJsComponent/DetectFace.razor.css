@@ -1,0 +1,50 @@
+.face-container {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+}
+
+.face_video {
+    display: none; /* video drawn onto canvas */
+}
+
+.face_canvas {
+    display: block;
+    max-width: 100%;
+    border-radius: 4px;
+}
+
+.face-container .loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border-radius: 4px;
+    transition: opacity 1s;
+}
+
+.face-container .loading .spinner {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: face-spin 0.9s linear infinite;
+    margin-bottom: 0.75rem;
+}
+
+.face-container .loading .message {
+    font-size: 0.9rem;
+}
+
+@keyframes face-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
