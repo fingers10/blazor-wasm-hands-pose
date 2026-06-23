@@ -13,7 +13,7 @@
 {
     <div class="card mt-3" style="max-width:480px">
         <div class="card-body">
-            <h5 class="card-title">&#x2705; Face captured</h5>
+            <h5 class="card-title">&#x2705; Face captured &mdash; @_capturedSampleCount sample@(_capturedSampleCount == 1 ? "" : "s") averaged</h5>
             <div class="mb-3">
                 <label class="form-label" for="personName">Full name</label>
                 <input id="personName" class="form-control" placeholder="e.g. Jane Smith"
@@ -51,6 +51,7 @@
 @code {
     private DetectFace? _face;
     private float[]? _capturedDescriptor;
+    private int _capturedSampleCount;
     private string _personName = "";
     private bool _busy;
     private string? _statusMessage;
@@ -67,6 +68,7 @@
         if (result.Detected && result.Descriptor != null)
         {
             _capturedDescriptor = result.Descriptor;
+            _capturedSampleCount = result.SampleCount;
             _statusMessage = null;
         }
         else

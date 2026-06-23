@@ -10,6 +10,14 @@ namespace DetectFaceJsComponent
     {
         private bool _initialized;
 
+        public bool IsCapturing { get; private set; }
+
+        public void SetRecognizedName(string? name)
+        {
+            if (OperatingSystem.IsBrowser() && _initialized)
+                Interop.SetRecognizedName(name ?? string.Empty);
+        }
+
         protected override async Task OnInitializedAsync()
         {
             if (OperatingSystem.IsBrowser())
@@ -24,9 +32,13 @@ namespace DetectFaceJsComponent
 
         public async Task CaptureDescriptor()
         {
-            if (OperatingSystem.IsBrowser() && _initialized)
+            if (OperatingSystem.IsBrowser() && _initialized && !IsCapturing)
             {
+                IsCapturing = true;
+                StateHasChanged();
                 await Interop.CaptureDescriptor(this);
+                IsCapturing = false;
+                StateHasChanged();
             }
         }
 
@@ -66,6 +78,9 @@ namespace DetectFaceJsComponent
             [JSImport("dispose", "DetectFaceJsComponent/DetectFace")]
             internal static partial Task Dispose();
 
+            [JSImport("setRecognizedName", "DetectFaceJsComponent/DetectFace")]
+            internal static partial void SetRecognizedName(string name);
+
             [JSExport]
             internal static void OnDescriptorReady(
                 [JSMarshalAs<JSType.Any>] object component,
@@ -102,5 +117,6 @@ namespace DetectFaceJsComponent
 
         public bool Detected { get; set; }
         public float[]? Descriptor { get; set; }
+        public int SampleCount { get; set; }
     }
 }

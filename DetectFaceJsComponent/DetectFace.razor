@@ -24,8 +24,16 @@
 
     @if (Mode == "enroll")
     {
-        <button class="btn btn-primary mt-2" @onclick="CaptureDescriptor">
-            &#x1F4F8; Capture Face
+        <button class="btn btn-primary mt-2" @onclick="CaptureDescriptor" disabled="@IsCapturing">
+            @if (IsCapturing)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                <span>Capturing 5 samples&hellip;</span>
+            }
+            else
+            {
+                <span>&#x1F4F8; Capture Face</span>
+            }
         </button>
     }
 </div>

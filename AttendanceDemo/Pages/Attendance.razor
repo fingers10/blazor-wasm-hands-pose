@@ -13,7 +13,7 @@
     <div class="alert @_recognitionCss mb-3">@_recognitionMessage</div>
 }
 
-<DetectFace Mode="checkin" OnDescriptorCaptured="HandleCheckin" />
+<DetectFace @ref="_face" Mode="checkin" OnDescriptorCaptured="HandleCheckin" />
 
 @if (_todayRecords.Count > 0)
 {
@@ -37,6 +37,7 @@ else
 }
 
 @code {
+    private DetectFace? _face;
     private string? _recognitionMessage;
     private string _recognitionCss = "alert-success";
     private List<AttendanceRecordDto> _todayRecords = new();
@@ -63,12 +64,14 @@ else
                 var data = await response.Content.ReadFromJsonAsync<CheckInResponseDto>();
                 if (data?.Recognized == true)
                 {
+                    _face?.SetRecognizedName(data.PersonName);
                     _recognitionMessage = $"✅ Welcome, {data.PersonName}! Attendance marked.";
                     _recognitionCss = "alert-success";
                     await LoadTodayAttendance();
                 }
                 else
                 {
+                    _face?.SetRecognizedName("?");
                     _recognitionMessage = "❓ Face not recognised — please enrol first.";
                     _recognitionCss = "alert-warning";
                 }
