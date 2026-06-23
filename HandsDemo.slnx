@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="AttendanceApi/AttendanceApi.csproj" />
+  <Project Path="AttendanceDemo/AttendanceDemo.csproj" />
+  <Project Path="DetectFaceJsComponent/DetectFaceJsComponent.csproj" />
+  <Project Path="DetectHandsJsComponent/DetectHandsJsComponent.csproj" />
+  <Project Path="HandsDemo/HandsDemo.csproj" />
+</Solution>
