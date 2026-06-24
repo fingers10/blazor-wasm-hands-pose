@@ -6,13 +6,20 @@
 
 <h3>&#x1F4CB; Attendance Check-In</h3>
 <p class="text-muted">Face the camera — recognised people are marked automatically.</p>
-
+<div class="mb-3" style="max-width:420px">
+    <label class="form-label fw-semibold">&#x1F6E1;&#xFE0F; Liveness detection</label>
+    <select class="form-select" @bind="_livenessMode" @bind:after="OnLivenessModeChanged">
+        <option value="none">None &mdash; no liveness check</option>
+        <option value="blink">Layer 1 &mdash; Blink detection (EAR, zero dependencies)</option>
+        <option value="minifasnet">Layer 2 &mdash; Anti-spoof AI model (MiniFASNet ONNX)</option>
+    </select>
+</div>
 @if (_recognitionMessage != null)
 {
     <div class="alert @_recognitionCss mb-3">@_recognitionMessage</div>
 }
 
-<DetectFace @ref="_face" Mode="checkin" OnDescriptorCaptured="HandleCheckin" />
+<DetectFace @ref="_face" Mode="checkin" LivenessMode="@_livenessMode" OnDescriptorCaptured="HandleCheckin" />
 
 @if (_todayRecords.Count > 0)
 {
@@ -37,10 +44,16 @@ else
 
 @code {
     private DetectFace? _face;
+    private string _livenessMode = "blink";
     private string? _recognitionMessage;
     private string _recognitionCss = "alert-success";
     private List<AttendanceRecordDto> _todayRecords = new();
     private bool _processing;
+
+    private void OnLivenessModeChanged()
+    {
+        _face?.SetLivenessMode(_livenessMode);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -50,6 +63,9 @@ else
     private async void HandleCheckin(DescriptorResult result)
     {
         if (!result.Detected || result.Descriptor is null || _processing) return;
+
+        // C#-level liveness gate — block check-in if liveness mode is active but not confirmed
+        if (_livenessMode != "none" && !(_face?.LivenessConfirmed ?? false)) return;
 
         _processing = true;
         try
@@ -64,6 +80,7 @@ else
                 if (data?.Recognized == true)
                 {
                     _face?.SetRecognizedName(data.PersonName);
+                    _face?.ResetLiveness();  // require fresh liveness proof for next check-in
                     _recognitionMessage = $"✅ Welcome, {data.PersonName}! Attendance marked.";
                     _recognitionCss = "alert-success";
                     await LoadTodayAttendance();

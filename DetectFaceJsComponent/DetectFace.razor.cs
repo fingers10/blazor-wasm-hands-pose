@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
+using Microsoft.AspNetCore.Components;
 
 namespace DetectFaceJsComponent
 {
@@ -10,12 +11,27 @@ namespace DetectFaceJsComponent
     {
         private bool _initialized;
 
+        [Parameter] public string LivenessMode { get; set; } = "none";
+        public bool LivenessConfirmed { get; set; }
+
         public bool IsCapturing { get; private set; }
 
         public void SetRecognizedName(string? name)
         {
             if (OperatingSystem.IsBrowser() && _initialized)
                 Interop.SetRecognizedName(name ?? string.Empty);
+        }
+
+        public void SetLivenessMode(string mode)
+        {
+            if (OperatingSystem.IsBrowser() && _initialized)
+                Interop.SetLivenessMode(mode);
+        }
+
+        public void ResetLiveness()
+        {
+            if (OperatingSystem.IsBrowser() && _initialized)
+                Interop.ResetLiveness();
         }
 
         protected override async Task OnInitializedAsync()
@@ -27,8 +43,10 @@ namespace DetectFaceJsComponent
                     "../_content/DetectFaceJsComponent/DetectFace.razor.js");
                 try
                 {
-                    await Interop.OnInit(this, Mode);
+                    await Interop.OnInit(this, Mode, LivenessMode);
                     _initialized = true;
+                    // Sync liveness mode in case the [Parameter] changed while models were loading
+                    Interop.SetLivenessMode(LivenessMode);
                 }
                 catch (Exception ex) when (ex.Message.Contains("NotAllowedError") || ex.Message.Contains("Permission denied"))
                 {
@@ -77,7 +95,8 @@ namespace DetectFaceJsComponent
             [JSImport("onInit", "DetectFaceJsComponent/DetectFace")]
             internal static partial Task OnInit(
                 [JSMarshalAs<JSType.Any>] object component,
-                string mode);
+                string mode,
+                string livenessMode);
 
             [JSImport("captureDescriptor", "DetectFaceJsComponent/DetectFace")]
             internal static partial Task CaptureDescriptor(
@@ -88,6 +107,12 @@ namespace DetectFaceJsComponent
 
             [JSImport("setRecognizedName", "DetectFaceJsComponent/DetectFace")]
             internal static partial void SetRecognizedName(string name);
+
+            [JSImport("setLivenessMode", "DetectFaceJsComponent/DetectFace")]
+            internal static partial void SetLivenessMode(string mode);
+
+            [JSImport("resetLiveness", "DetectFaceJsComponent/DetectFace")]
+            internal static partial void ResetLiveness();
 
             [JSExport]
             internal static void OnDescriptorReady(
@@ -110,6 +135,19 @@ namespace DetectFaceJsComponent
                 if (detectFace.FaceDetected != faceDetected)
                 {
                     detectFace.FaceDetected = faceDetected;
+                    detectFace.StateHasChanged();
+                }
+            }
+
+            [JSExport]
+            internal static void OnLivenessChanged(
+                [JSMarshalAs<JSType.Any>] object component,
+                bool confirmed)
+            {
+                DetectFace detectFace = (DetectFace)component;
+                if (detectFace.LivenessConfirmed != confirmed)
+                {
+                    detectFace.LivenessConfirmed = confirmed;
                     detectFace.StateHasChanged();
                 }
             }

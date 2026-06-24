@@ -8,7 +8,16 @@
 <h3>&#x1F9CD; Enroll a New Person</h3>
 <p class="text-muted">Position your face in the camera, click <strong>Capture Face</strong>, then enter your name and register.</p>
 
-<DetectFace @ref="_face" Mode="enroll" OnDescriptorCaptured="HandleCapture" />
+<div class="mb-3" style="max-width:420px">
+    <label class="form-label fw-semibold">&#x1F6E1;&#xFE0F; Liveness detection</label>
+    <select class="form-select" @bind="_livenessMode" @bind:after="OnLivenessModeChanged">
+        <option value="none">None &mdash; no liveness check</option>
+        <option value="blink">Layer 1 &mdash; Blink detection (EAR, zero dependencies)</option>
+        <option value="minifasnet">Layer 2 &mdash; Anti-spoof AI model (MiniFASNet ONNX)</option>
+    </select>
+</div>
+
+<DetectFace @ref="_face" Mode="enroll" LivenessMode="@_livenessMode" OnDescriptorCaptured="HandleCapture" />
 
 @if (_capturedDescriptor != null)
 {
@@ -51,6 +60,7 @@
 
 @code {
     private DetectFace? _face;
+    private string _livenessMode = "blink";
     private float[]? _capturedDescriptor;
     private int _capturedSampleCount;
     private string _personName = "";
@@ -62,6 +72,11 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadEnrolled();
+    }
+
+    private void OnLivenessModeChanged()
+    {
+        _face?.SetLivenessMode(_livenessMode);
     }
 
     private void HandleCapture(DescriptorResult result)

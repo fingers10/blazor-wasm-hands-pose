@@ -22,9 +22,40 @@
         <div class="alert alert-warning mt-2">No face detected &mdash; please look at the camera</div>
     }
 
+    @if (LivenessMode != "none" && FaceDetected)
+    {
+        @if (LivenessMode == "blink")
+        {
+            <div class="alert @(LivenessConfirmed ? "alert-success" : "alert-info") mt-2">
+                @if (LivenessConfirmed)
+                {
+                    <span>&#x2705; Liveness confirmed &mdash; blink detected</span>
+                }
+                else
+                {
+                    <span>&#x1F441; Please <strong>blink naturally</strong> to confirm you&apos;re live</span>
+                }
+            </div>
+        }
+        else if (LivenessMode == "minifasnet")
+        {
+            <div class="alert @(LivenessConfirmed ? "alert-success" : "alert-info") mt-2">
+                @if (LivenessConfirmed)
+                {
+                    <span>&#x2705; Liveness confirmed &mdash; real face detected</span>
+                }
+                else
+                {
+                    <span>&#x1F50D; Analysing liveness&hellip; look directly at the camera</span>
+                }
+            </div>
+        }
+    }
+
     @if (Mode == "enroll")
     {
-        <button class="btn btn-primary mt-2" @onclick="CaptureDescriptor" disabled="@IsCapturing">
+        <button class="btn btn-primary mt-2" @onclick="CaptureDescriptor"
+                disabled="@(IsCapturing || (LivenessMode != "none" && !LivenessConfirmed))">
             @if (IsCapturing)
             {
                 <span class="spinner-border spinner-border-sm me-1" role="status"></span>
