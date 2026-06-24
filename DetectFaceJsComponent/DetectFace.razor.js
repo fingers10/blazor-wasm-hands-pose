@@ -77,7 +77,17 @@ function updateLoadingMessage(msg) {
 }
 
 async function startCamera() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch (err) {
+        const msg = err.name === 'NotAllowedError'
+            ? 'Failed to acquire camera feed: NotAllowedError: Permission denied'
+            : `Failed to acquire camera feed: ${err.message}`;
+        updateLoadingMessage(`⚠️ ${msg}`);
+        window.alert(msg);
+        throw err;  // re-throw so onInit propagates the failure to C#
+    }
     videoElement.srcObject = stream;
     await videoElement.play();
 

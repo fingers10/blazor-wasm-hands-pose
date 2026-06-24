@@ -25,8 +25,16 @@ namespace DetectFaceJsComponent
                 await JSHost.ImportAsync(
                     "DetectFaceJsComponent/DetectFace",
                     "../_content/DetectFaceJsComponent/DetectFace.razor.js");
-                await Interop.OnInit(this, Mode);
-                _initialized = true;
+                try
+                {
+                    await Interop.OnInit(this, Mode);
+                    _initialized = true;
+                }
+                catch (Exception ex) when (ex.Message.Contains("NotAllowedError") || ex.Message.Contains("Permission denied"))
+                {
+                    // Camera permission denied — JS already updated the spinner message;
+                    // swallow here so Blazor doesn't show the generic error banner.
+                }
             }
         }
 
