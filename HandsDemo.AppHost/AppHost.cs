@@ -1,6 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 var attendanceDatabaseServer = builder.AddPostgres("postgres")
+    .WithImage("pgvector/pgvector", "pg17")   // pre-built image with pgvector extension
     .WithPgAdmin(pgadmin =>
     {
         pgadmin.WithUrlForEndpoint("http", u => u.DisplayText = "pgAdmin Console");
@@ -13,7 +14,7 @@ var attendanceDb = attendanceDatabaseServer
 
 var attendanceApi = builder.AddProject<Projects.AttendanceApi>("Attendance-API")
     .WithUrlForEndpoint("https", u => u.DisplayText = "Attendance API")
-    .WithReference(attendanceDb, "ConnectionString")
+    .WithReference(attendanceDb)
     .WaitFor(attendanceDb);
 
 #pragma warning disable ASPIREBROWSERLOGS001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
