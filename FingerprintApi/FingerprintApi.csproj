@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- No third-party WebAuthn lib needed — uses built-in .NET 10 APIs:      -->
+    <!--   System.Formats.Cbor (CBOR / COSE key parsing)                       -->
+    <!--   System.Security.Cryptography.ECDsa (ECDSA-P256 signature verify)    -->
+    <!--   Microsoft.AspNetCore.WebUtilities.WebEncoders (base64url)            -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+  </ItemGroup>
+
+</Project>

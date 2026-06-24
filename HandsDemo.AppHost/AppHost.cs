@@ -33,4 +33,28 @@ var handsWeb = builder.AddProject<Projects.HandsDemo>("Hands-Web")
     .WithBrowserLogs();
 #pragma warning restore ASPIREBROWSERLOGS001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
+// ── Fingerprint / WebAuthn demo ───────────────────────────────────────────────
+var fingerprintDb = attendanceDatabaseServer
+    .AddDatabase("fingerprint-db", "Fingerprint");
+
+// Declare the web project first so we can inject its HTTPS endpoint into the API.
+// Aspire pre-assigns port numbers before any process starts, so there is no
+// circular-dependency problem at runtime.
+#pragma warning disable ASPIREBROWSERLOGS001
+var fingerprintWeb = builder.AddProject<Projects.FingerprintDemo>("Fingerprint-Web")
+    .WithUrlForEndpoint("https", u => u.DisplayText = "Fingerprint Demo")
+    .WithBrowserLogs();
+#pragma warning restore ASPIREBROWSERLOGS001
+
+var fingerprintApi = builder.AddProject<Projects.FingerprintApi>("Fingerprint-API")
+    .WithUrlForEndpoint("https", u => u.DisplayText = "Fingerprint API")
+    .WithReference(fingerprintDb)
+    .WaitFor(fingerprintDb)
+    // Inject the frontend origin so Fido2NetLib can validate WebAuthn rpId/origin
+    .WithEnvironment("WebAuthn__Origins", fingerprintWeb.GetEndpoint("https"));
+
+fingerprintWeb
+    .WithReference(fingerprintApi, "FingerprintApi")
+    .WaitFor(fingerprintApi);
+
 builder.Build().Run();

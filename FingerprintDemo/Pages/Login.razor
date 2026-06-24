@@ -1,0 +1,240 @@
+@page "/login"
+@inject IJSRuntime JS
+@inject IHttpClientFactory HttpFactory
+
+<PageTitle>Authenticate — Fingerprint Demo</PageTitle>
+
+<h3>&#x1F510; Authenticate with Passkey</h3>
+<p class="text-muted">
+    Verify your identity with your device&rsquo;s biometric sensor &mdash; no password required.
+</p>
+
+@if (!_supported)
+{
+    <div class="alert alert-warning">
+        &#x26A0;&#xFE0F; Your browser does not support WebAuthn / Passkeys.
+    </div>
+}
+else
+{
+    @* ── Reception kiosk: one-tap fingerprint, no username needed ── *@
+    <div class="card border-success mb-4" style="max-width: 420px;">
+        <div class="card-body text-center">
+            <div class="fingerprint-icon mb-2">&#x1F91A;</div>
+            <h5 class="card-title mb-1">Quick Sign-In</h5>
+            <p class="card-text text-muted small mb-3">
+                Just touch the fingerprint sensor. The device will show your name automatically.
+            </p>
+            <button class="btn btn-success btn-lg w-100"
+                    @onclick="AuthenticateDiscoverableAsync"
+                    disabled="@_busy">
+                @if (_busy && _discoverableFlow)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span>Follow the prompt&hellip;</span>
+                }
+                else
+                {
+                    <span>&#x261D;&#xFE0F;&nbsp; Touch Fingerprint</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @* ── Named flow: type username first (e.g. admin verification) ── *@
+    <details style="max-width: 420px;">
+        <summary class="text-muted small mb-2" style="cursor:pointer;">
+            &#x1F511; Sign in with username
+        </summary>
+        <div class="mt-2">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Username</label>
+                <input class="form-control"
+                       @bind="_username"
+                       placeholder="e.g. alice"
+                       disabled="@_busy" />
+            </div>
+            <button class="btn btn-outline-success"
+                    @onclick="AuthenticateAsync"
+                    disabled="@(_busy || string.IsNullOrWhiteSpace(_username))">
+                @if (_busy && !_discoverableFlow)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span>Follow the prompt&hellip;</span>
+                }
+                else
+                {
+                    <span>&#x1F91A;&nbsp; Verify with biometric</span>
+                }
+            </button>
+        </div>
+    </details>
+}
+
+@if (_message != null)
+{
+    <div class="alert @_alertCss mt-3">@_message</div>
+}
+
+@if (_users.Count > 0)
+{
+    <div class="mt-4" style="max-width: 480px;">
+        <h6 class="text-muted">Registered users (@_users.Count)</h6>
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Credentials</th>
+                    <th>Registered at (UTC)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in _users)
+                {
+                    <tr>
+                        <td>
+                            <button class="btn btn-link btn-sm p-0" @onclick="() => _username = u.Username">
+                                @u.Username
+                            </button>
+                        </td>
+                        <td>@u.CredentialCount</td>
+                        <td>@u.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private IJSObjectReference? _module;
+    private bool    _supported = true;
+    private bool    _busy;
+    private bool    _discoverableFlow;
+    private string? _username;
+    private string? _message;
+    private string  _alertCss = "alert-success";
+
+    private List<UserDto> _users = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _module    = await JS.InvokeAsync<IJSObjectReference>("import", "./webauthn.js");
+            _supported = await _module.InvokeAsync<bool>("isWebAuthnSupported");
+        }
+        catch (Exception ex)
+        {
+            _supported = false;
+            _message   = $"&#x274C; Could not initialise WebAuthn: {ex.Message}";
+            _alertCss  = "alert-danger";
+        }
+        await LoadUsersAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            var http = HttpFactory.CreateClient("fingerprint");
+            _users = await http.GetFromJsonAsync<List<UserDto>>("/api/users") ?? [];
+        }
+        catch { /* API may not be running in standalone dev */ }
+    }
+
+    private async Task AuthenticateDiscoverableAsync()
+        => await DoAuthenticateAsync(username: null);
+
+    private async Task AuthenticateAsync()
+        => await DoAuthenticateAsync(username: _username);
+
+    private async Task DoAuthenticateAsync(string? username)
+    {
+        if (_module is null) { _message = "&#x274C; WebAuthn module not loaded."; _alertCss = "alert-danger"; return; }
+        _message         = null;
+        _busy            = true;
+        _discoverableFlow = string.IsNullOrWhiteSpace(username);
+        StateHasChanged();
+        try
+        {
+            var http = HttpFactory.CreateClient("fingerprint");
+
+            // 1. Fetch authentication options
+            //    Null/empty username → server returns allowCredentials:[] → browser shows all passkeys
+            var optRes = await http.PostAsJsonAsync(
+                "/api/webauthn/authenticate/options",
+                new { username = string.IsNullOrWhiteSpace(username) ? null : username });
+
+            if (!optRes.IsSuccessStatusCode)
+            {
+                _message  = $"&#x274C; {await optRes.Content.ReadAsStringAsync()}";
+                _alertCss = "alert-danger";
+                return;
+            }
+
+            var optData = await optRes.Content.ReadFromJsonAsync<OptionsResponse>();
+
+            // 2. Invoke browser WebAuthn API — triggers OS biometric/passkey picker
+            string assertionJson;
+            try
+            {
+                assertionJson = await _module!.InvokeAsync<string>(
+                    "startAuthentication", optData!.OptionsJson);
+            }
+            catch (JSException ex)
+            {
+                _message  = $"&#x26A0;&#xFE0F; Prompt cancelled or failed: {ex.Message}";
+                _alertCss = "alert-warning";
+                return;
+            }
+
+            // 3. Server verifies the ECDSA signature
+            var completeRes = await http.PostAsJsonAsync(
+                "/api/webauthn/authenticate/complete",
+                new { sessionKey = optData.SessionKey, assertionResponse = assertionJson });
+
+            var body = await completeRes.Content.ReadAsStringAsync();
+            if (completeRes.IsSuccessStatusCode)
+            {
+                var doc       = System.Text.Json.JsonDocument.Parse(body).RootElement;
+                var msg       = doc.TryGetProperty("message",   out var m) ? m.GetString() ?? "" : body;
+                var entryType = doc.TryGetProperty("entryType", out var e) ? e.GetString() : "";
+                var icon      = entryType == "CheckIn" ? "&#x2705;" : "&#x1F6AA;";
+                _message  = $"{icon} {msg}";
+                _alertCss = entryType == "CheckIn" ? "alert-success" : "alert-info";
+                await LoadUsersAsync();
+            }
+            else
+            {
+                _message  = $"&#x274C; {body}";
+                _alertCss = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            _message  = $"&#x274C; Unexpected error: {ex.Message}";
+            _alertCss = "alert-danger";
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string ExtractMessage(string json)
+    {
+        try
+        {
+            return System.Text.Json.JsonDocument.Parse(json)
+                         .RootElement.GetProperty("message").GetString() ?? json;
+        }
+        catch { return json; }
+    }
+
+    private record OptionsResponse(string SessionKey, string OptionsJson);
+    private record UserDto(Guid Id, string Username, DateTime CreatedAt, int CredentialCount);
+}

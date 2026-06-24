@@ -4,6 +4,8 @@
     <ProjectReference Include="..\HandsDemo\HandsDemo.csproj" />
     <ProjectReference Include="..\AttendanceDemo\AttendanceDemo.csproj" />
     <ProjectReference Include="..\AttendanceApi\AttendanceApi.csproj" />
+    <ProjectReference Include="..\FingerprintDemo\FingerprintDemo.csproj" />
+    <ProjectReference Include="..\FingerprintApi\FingerprintApi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,154 @@
+@page "/"
+@page "/register"
+@inject IJSRuntime JS
+@inject IHttpClientFactory HttpFactory
+
+<PageTitle>Register — Fingerprint Demo</PageTitle>
+
+<h3>&#x1F4DD; Register a Passkey</h3>
+<p class="text-muted">
+    Each person needs to register using <strong>their own device</strong> &mdash; phone, tablet, or their personal laptop.<br />
+    On a shared Mac, use <strong>your phone</strong>: Chrome will show a QR code &rarr; scan with your phone &rarr; verify with your phone&rsquo;s Face&nbsp;ID&nbsp;/&nbsp;fingerprint.
+</p>
+
+@if (!_supported)
+{
+    <div class="alert alert-warning">
+        &#x26A0;&#xFE0F; Your browser does not support WebAuthn / Passkeys.
+        Please use a modern browser (Chrome&nbsp;67+, Safari&nbsp;14+, Firefox&nbsp;60+).
+    </div>
+}
+else
+{
+    <div style="max-width: 420px;">
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input class="form-control"
+                   @bind="_username"
+                   placeholder="e.g. alice"
+                   disabled="@_busy" />
+        </div>
+        <button class="btn btn-primary"
+                @onclick="RegisterAsync"
+                disabled="@(_busy || string.IsNullOrWhiteSpace(_username))">
+            @if (_busy)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                <span>Follow the prompt on your device&hellip;</span>
+            }
+            else
+            {
+                <span>&#x261D;&#xFE0F;&nbsp; Register with biometric</span>
+            }
+        </button>
+    </div>
+}
+
+@if (_message != null)
+{
+    <div class="alert @_alertCss mt-3">@_message</div>
+}
+
+@code {
+    private IJSObjectReference? _module;
+    private bool    _supported = true;
+    private bool    _busy;
+    private string? _username;
+    private string? _message;
+    private string  _alertCss = "alert-success";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _module    = await JS.InvokeAsync<IJSObjectReference>("import", "./webauthn.js");
+            _supported = await _module.InvokeAsync<bool>("isWebAuthnSupported");
+        }
+        catch (Exception ex)
+        {
+            _supported = false;
+            _message   = $"&#x274C; Could not initialise WebAuthn: {ex.Message}";
+            _alertCss  = "alert-danger";
+        }
+        StateHasChanged();
+    }
+
+    private async Task RegisterAsync()
+    {
+        if (_module is null) { _message = "&#x274C; WebAuthn module not loaded."; _alertCss = "alert-danger"; return; }
+        _message  = null;
+        _busy     = true;
+        StateHasChanged();
+        try
+        {
+            var http = HttpFactory.CreateClient("fingerprint");
+
+            // 1. Fetch registration options from the server
+            var optRes = await http.PostAsJsonAsync(
+                "/api/webauthn/register/options",
+                new { username = _username });
+
+            if (!optRes.IsSuccessStatusCode)
+            {
+                _message  = $"&#x274C; {await optRes.Content.ReadAsStringAsync()}";
+                _alertCss = "alert-danger";
+                return;
+            }
+
+            var optData = await optRes.Content.ReadFromJsonAsync<OptionsResponse>();
+
+            // 2. Invoke browser WebAuthn API — triggers OS biometric prompt
+            string attestationJson;
+            try
+            {
+                attestationJson = await _module!.InvokeAsync<string>(
+                    "startRegistration", optData!.OptionsJson);
+            }
+            catch (JSException ex)
+            {
+                _message  = $"&#x26A0;&#xFE0F; Prompt cancelled or failed: {ex.Message}";
+                _alertCss = "alert-warning";
+                return;
+            }
+
+            // 3. Send attestation to the server to verify and store
+            var completeRes = await http.PostAsJsonAsync(
+                "/api/webauthn/register/complete",
+                new { sessionKey = optData.SessionKey, attestationResponse = attestationJson });
+
+            var body = await completeRes.Content.ReadAsStringAsync();
+            if (completeRes.IsSuccessStatusCode)
+            {
+                _message  = $"&#x2705; {ExtractMessage(body)}";
+                _alertCss = "alert-success";
+            }
+            else
+            {
+                _message  = $"&#x274C; {body}";
+                _alertCss = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            _message  = $"&#x274C; Unexpected error: {ex.Message}";
+            _alertCss = "alert-danger";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string ExtractMessage(string json)
+    {
+        try
+        {
+            return System.Text.Json.JsonDocument.Parse(json)
+                         .RootElement.GetProperty("message").GetString() ?? json;
+        }
+        catch { return json; }
+    }
+
+    private record OptionsResponse(string SessionKey, string OptionsJson);
+}

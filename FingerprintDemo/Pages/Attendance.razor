@@ -1,0 +1,143 @@
+@page "/attendance"
+@inject IHttpClientFactory HttpFactory
+
+<PageTitle>Attendance &mdash; Today</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h3 class="mb-0">&#x1F4CB; Attendance &mdash; @_today</h3>
+        <small class="text-muted">Refreshes every 30 s &nbsp;|&nbsp; All times UTC</small>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" @onclick="LoadAsync" disabled="@_loading">
+        @if (_loading)
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+        }
+        else
+        {
+            <span>&#x21BA;</span>
+        }
+        Refresh
+    </button>
+</div>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger">&#x274C; @_error</div>
+}
+
+@if (_records.Count == 0 && !_loading)
+{
+    <div class="alert alert-secondary">No attendance entries for today yet.</div>
+}
+else
+{
+    @* ── Summary bar ─────────────────────────────────────────────────────── *@
+    <div class="d-flex gap-3 mb-4">
+        <div class="card text-bg-success px-3 py-2">
+            <div class="fs-4 fw-bold">@_insideCount</div>
+            <div class="small">Currently Inside</div>
+        </div>
+        <div class="card text-bg-secondary px-3 py-2">
+            <div class="fs-4 fw-bold">@_outsideCount</div>
+            <div class="small">Currently Outside</div>
+        </div>
+        <div class="card text-bg-light px-3 py-2">
+            <div class="fs-4 fw-bold">@_records.Count</div>
+            <div class="small">Total Staff</div>
+        </div>
+    </div>
+
+    @* ── Per-staff rows ───────────────────────────────────────────────────── *@
+    <div class="table-responsive" style="max-width: 760px;">
+        <table class="table table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Staff</th>
+                    <th>Status</th>
+                    <th>Entries today</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in _records)
+                {
+                    <tr>
+                        <td class="fw-semibold">@r.Username</td>
+                        <td>
+                            @if (r.CurrentStatus == "Inside")
+                            {
+                                <span class="badge bg-success">&#x2705; Inside</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">&#x1F6AA; Outside</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var entry in r.Entries)
+                                {
+                                    <span class="badge @(entry.Type == "CheckIn" ? "bg-success" : "bg-secondary")"
+                                          title="@entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss") UTC">
+                                        @(entry.Type == "CheckIn" ? "&#x2B06;" : "&#x2B07;")
+                                        @entry.Timestamp.ToString("HH:mm")
+                                    </span>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private record AttendanceEntryDto(string Type, DateTime Timestamp);
+    private record AttendanceRecord(string Username, string CurrentStatus, List<AttendanceEntryDto> Entries);
+
+    private List<AttendanceRecord> _records  = [];
+    private bool                   _loading  = true;
+    private string?                _error;
+    private string                 _today    = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy");
+
+    private int _insideCount  => _records.Count(r => r.CurrentStatus == "Inside");
+    private int _outsideCount => _records.Count(r => r.CurrentStatus == "Outside");
+
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        // Auto-refresh every 30 s
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            await LoadAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error   = null;
+        _today   = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy");
+        StateHasChanged();
+        try
+        {
+            var http = HttpFactory.CreateClient("fingerprint");
+            _records = await http.GetFromJsonAsync<List<AttendanceRecord>>("/api/attendance/today") ?? [];
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}
