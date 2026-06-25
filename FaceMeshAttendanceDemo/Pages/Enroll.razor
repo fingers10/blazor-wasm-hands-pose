@@ -1,0 +1,146 @@
+@page "/"
+@page "/enroll"
+@inject IHttpClientFactory HttpFactory
+
+<PageTitle>Enroll Face — Face Mesh</PageTitle>
+
+<h3>&#x1F9CD; Enroll a New Person</h3>
+<p class="text-muted">
+    Position your face in the camera, select a liveness mode, then click
+    <strong>Capture Face</strong>. Enter your name and register.
+</p>
+
+<div class="mb-3" style="max-width:420px">
+    <label class="form-label fw-semibold">&#x1F6E1;&#xFE0F; Liveness mode</label>
+    <select class="form-select" @bind="_livenessMode" @bind:after="OnLivenessModeChanged">
+        <option value="none">None &mdash; no liveness check</option>
+        <option value="blink">Blink &mdash; active challenge (blink required)</option>
+        <option value="depth">Z-depth &mdash; passive check, detects flat photos/screens</option>
+        <option value="both">Both &mdash; Z-depth (passive) then Blink (active)</option>
+    </select>
+</div>
+
+<FaceMesh @ref="_face"
+          Mode="enroll"
+          LivenessMode="@_livenessMode"
+          OnFeatureVectorCaptured="HandleCapture" />
+
+@if (_capturedVector != null)
+{
+    <div class="card mt-3" style="max-width:480px">
+        <div class="card-body">
+            <h5 class="card-title">
+                &#x2705; Face captured &mdash; @_capturedSamples sample@(_capturedSamples == 1 ? "" : "s") averaged
+            </h5>
+            <div class="mb-3">
+                <label class="form-label" for="personName">Full name</label>
+                <input id="personName" class="form-control" placeholder="e.g. Jane Smith"
+                       @bind="_personName" @bind:event="oninput" />
+            </div>
+            <button class="btn btn-success"
+                    @onclick="RegisterPerson"
+                    disabled="@(string.IsNullOrWhiteSpace(_personName) || _busy)">
+                @(_busy ? "Registering\u2026" : "Register")
+            </button>
+            @if (_statusMessage != null)
+            {
+                <div class="alert @_statusCss mt-2 mb-0">@_statusMessage</div>
+            }
+        </div>
+    </div>
+}
+
+@if (_enrolled.Count > 0)
+{
+    <h5 class="mt-4">Enrolled people (@_enrolled.Count)</h5>
+    <table class="table table-sm table-striped" style="max-width:480px">
+        <thead><tr><th>Name</th><th>Enrolled at (UTC)</th></tr></thead>
+        <tbody>
+            @foreach (var p in _enrolled)
+            {
+                <tr>
+                    <td>@p.Name</td>
+                    <td>@p.EnrolledAt.ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private FaceMesh? _face;
+    private string _livenessMode = "blink";
+    private float[]? _capturedVector;
+    private int _capturedSamples;
+    private string _personName = "";
+    private bool _busy;
+    private string? _statusMessage;
+    private string _statusCss = "alert-success";
+    private List<EnrolledPersonDto> _enrolled = new();
+
+    protected override async Task OnInitializedAsync() => await LoadEnrolled();
+
+    private void OnLivenessModeChanged() => _face?.SetLivenessMode(_livenessMode);
+
+    private void HandleCapture(FeatureVectorResult result)
+    {
+        if (result.Detected && result.Vector != null)
+        {
+            _capturedVector  = result.Vector;
+            _capturedSamples = result.SampleCount;
+            _statusMessage   = null;
+        }
+        else
+        {
+            _statusMessage = "No face detected \u2014 please look at the camera and try again.";
+            _statusCss     = "alert-warning";
+            StateHasChanged();
+        }
+    }
+
+    private async Task RegisterPerson()
+    {
+        if (_capturedVector is null || string.IsNullOrWhiteSpace(_personName)) return;
+
+        _busy = true; _statusMessage = null; StateHasChanged();
+        try
+        {
+            var http     = HttpFactory.CreateClient("facemesh");
+            var payload  = new { name = _personName.Trim(), vector = _capturedVector };
+            var response = await http.PostAsJsonAsync("/api/mesh/persons/enroll", payload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _statusMessage  = $"\u2705 {_personName.Trim()} registered!";
+                _statusCss      = "alert-success";
+                _personName     = "";
+                _capturedVector = null;
+                await LoadEnrolled();
+            }
+            else
+            {
+                _statusMessage = $"\u274C Registration failed: {response.ReasonPhrase}";
+                _statusCss     = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = $"\u274C Error: {ex.Message}";
+            _statusCss     = "alert-danger";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task LoadEnrolled()
+    {
+        try
+        {
+            var http = HttpFactory.CreateClient("facemesh");
+            var list = await http.GetFromJsonAsync<List<EnrolledPersonDto>>("/api/mesh/persons");
+            _enrolled = list ?? new();
+        }
+        catch { /* API not yet running */ }
+    }
+
+    private record EnrolledPersonDto(Guid Id, string Name, DateTime EnrolledAt);
+}

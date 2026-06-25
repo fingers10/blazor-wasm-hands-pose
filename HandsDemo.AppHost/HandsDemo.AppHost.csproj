@@ -6,8 +6,8 @@
     <ProjectReference Include="..\AttendanceApi\AttendanceApi.csproj" />
     <ProjectReference Include="..\FingerprintDemo\FingerprintDemo.csproj" />
     <ProjectReference Include="..\FingerprintApi\FingerprintApi.csproj" />
-    <ProjectReference Include="..\FaceMeshDemo\FaceMeshDemo.csproj" />
-  </ItemGroup>
+    <ProjectReference Include="..\FaceMeshDemo\FaceMeshDemo.csproj" />    <ProjectReference Include=".\..\FaceMeshAttendanceApi\FaceMeshAttendanceApi.csproj" />
+    <ProjectReference Include=".\..\FaceMeshAttendanceDemo\FaceMeshAttendanceDemo.csproj" />  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Browsers" Version="13.4.6-preview.1.26319.6" />

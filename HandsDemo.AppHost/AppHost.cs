@@ -35,6 +35,21 @@ var handsWeb = builder.AddProject<Projects.HandsDemo>("Hands-Web")
 var faceMeshWeb = builder.AddProject<Projects.FaceMeshDemo>("FaceMesh-Web")
     .WithUrlForEndpoint("https", u => u.DisplayText = "Face Mesh Demo")
     .WithBrowserLogs();
+
+// ── Face Mesh Attendance demo ─────────────────────────────────────────────────
+var faceMeshAttendanceDb = attendanceDatabaseServer
+    .AddDatabase("facemesh-db", "FaceMeshAttendance");
+
+var faceMeshAttendanceApi = builder.AddProject<Projects.FaceMeshAttendanceApi>("FaceMeshAttendance-API")
+    .WithUrlForEndpoint("https", u => u.DisplayText = "Face Mesh Attendance API")
+    .WithReference(faceMeshAttendanceDb)
+    .WaitFor(faceMeshAttendanceDb);
+
+var faceMeshAttendanceWeb = builder.AddProject<Projects.FaceMeshAttendanceDemo>("FaceMeshAttendance-Web")
+    .WithUrlForEndpoint("https", u => u.DisplayText = "Face Mesh Attendance Demo")
+    .WithBrowserLogs()
+    .WithReference(faceMeshAttendanceApi, "FaceMeshAttendanceApi")
+    .WaitFor(faceMeshAttendanceApi);
 #pragma warning restore ASPIREBROWSERLOGS001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 // ── Fingerprint / WebAuthn demo ───────────────────────────────────────────────

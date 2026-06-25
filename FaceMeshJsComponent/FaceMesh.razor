@@ -1,45 +1,113 @@
 <div>
-    Face mesh detection via <a href="https://www.mediapipe.dev" target="_blank">MediaPipe</a>. Please allow your camera.
+    @if (Mode == "visualize")
+    {
+        <span>Face mesh via <a href="https://www.mediapipe.dev" target="_blank">MediaPipe</a>. Please allow your camera.</span>
+    }
 
-    <div class="container">
+    <div class="mesh-container">
         <video class="input_video selfie"></video>
         <canvas class="output_canvas" width="1280px" height="720px"></canvas>
         <div class="loading">
             <div class="spinner"></div>
             <div class="message">Loading</div>
         </div>
-        <div>
-            @if (DetectionResult != null)
+    </div>
+
+    @if (Mode == "visualize" && DetectionResult != null)
+    {
+        if (DetectionResult.Faces != null && DetectionResult.Faces.Count > 0)
+        {
+            <ul>
+                @foreach (var face in DetectionResult.Faces)
+                {
+                    if (face.Landmarks.Count > 4)
+                    {
+                        var noseTip = face.Landmarks[4];
+                        int nx = (int)(noseTip.X * 100);
+                        int ny = (int)(noseTip.Y * 100);
+                        <li>Face @face.Index &mdash; nose tip at [@nx%, @ny%] &mdash; @face.Landmarks.Count landmarks</li>
+                    }
+                }
+            </ul>
+        }
+        else
+        {
+            <div>I don&rsquo;t see any faces.</div>
+        }
+    }
+
+    @if (Mode != "visualize")
+    {
+        <div class="mt-2">
+            @if (FaceDetected)
             {
-                if (DetectionResult.Faces != null && DetectionResult.Faces.Count > 0)
-                {
-                    <ul>
-                        @foreach (var face in DetectionResult.Faces)
+                <div class="alert alert-success">&#x1F9D1; Face detected</div>
+            }
+            else
+            {
+                <div class="alert alert-warning">No face detected &mdash; please look at the camera</div>
+            }
+
+            @if (LivenessMode != "none" && FaceDetected)
+            {
+                <div class="alert @(LivenessConfirmed ? "alert-success" : "alert-info")">
+                    @if (LivenessConfirmed)
+                    {
+                        @if (LivenessMode == "blink")
                         {
-                            if (face.Landmarks.Count > 4)
-                            {
-                                var noseTip = face.Landmarks[4];
-                                int nx = (int)(noseTip.X * 100);
-                                int ny = (int)(noseTip.Y * 100);
-                                <li>
-                                    Face @face.Index &mdash; nose tip at [@nx%, @ny%] &mdash; @face.Landmarks.Count landmarks
-                                </li>
-                            }
+                            <span>&#x2705; Liveness confirmed &mdash; blink detected</span>
                         }
-                    </ul>
-                }
-                else
-                {
-                    <div>I don&rsquo;t see any faces.</div>
-                }
+                        else if (LivenessMode == "depth")
+                        {
+                            <span>&#x2705; Liveness confirmed &mdash; real 3D face detected</span>
+                        }
+                        else
+                        {
+                            <span>&#x2705; Liveness confirmed &mdash; depth + blink verified</span>
+                        }
+                    }
+                    else if (LivenessMode == "blink")
+                    {
+                        <span>&#x1F441;&#xFE0F; Please <strong>blink</strong> to confirm you&apos;re live</span>
+                    }
+                    else if (LivenessMode == "depth")
+                    {
+                        <span>&#x1F50D; Checking face depth&hellip;</span>
+                    }
+                    else @* both *@
+                    {
+                        @if (DepthConfirmed)
+                        {
+                            <span>&#x2705; Depth verified &mdash; now please <strong>blink once</strong></span>
+                        }
+                        else
+                        {
+                            <span>&#x1F50D; Checking face depth&hellip;</span>
+                        }
+                    }
+                </div>
+            }
+
+            @if (Mode == "enroll")
+            {
+                <button class="btn btn-primary mt-1"
+                        @onclick="CaptureFeatureVector"
+                        disabled="@(IsCapturing || (LivenessMode != "none" && !LivenessConfirmed))">
+                    @if (IsCapturing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Capturing 5 samples&hellip;</span>
+                    }
+                    else
+                    {
+                        <span>&#x1F4F8; Capture Face</span>
+                    }
+                </button>
             }
         </div>
-    </div>
+    }
 </div>
 
 @code {
-    [Parameter]
-    public RenderFragment? ChildContent { get; set; }
-
     public FaceMeshResult? DetectionResult { get; set; }
 }

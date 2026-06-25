@@ -8,6 +8,8 @@
   <Project Path="AttendanceDemo/AttendanceDemo.csproj" />
   <Project Path="DetectFaceJsComponent/DetectFaceJsComponent.csproj" />
   <Project Path="DetectHandsJsComponent/DetectHandsJsComponent.csproj" />
+  <Project Path="FaceMeshAttendanceApi/FaceMeshAttendanceApi.csproj" />
+  <Project Path="FaceMeshAttendanceDemo/FaceMeshAttendanceDemo.csproj" />
   <Project Path="FaceMeshDemo/FaceMeshDemo.csproj" />
   <Project Path="FaceMeshJsComponent/FaceMeshJsComponent.csproj" />
   <Project Path="FingerprintApi/FingerprintApi.csproj" />
