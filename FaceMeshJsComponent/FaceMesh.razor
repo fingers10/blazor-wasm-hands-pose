@@ -1,0 +1,45 @@
+<div>
+    Face mesh detection via <a href="https://www.mediapipe.dev" target="_blank">MediaPipe</a>. Please allow your camera.
+
+    <div class="container">
+        <video class="input_video selfie"></video>
+        <canvas class="output_canvas" width="1280px" height="720px"></canvas>
+        <div class="loading">
+            <div class="spinner"></div>
+            <div class="message">Loading</div>
+        </div>
+        <div>
+            @if (DetectionResult != null)
+            {
+                if (DetectionResult.Faces != null && DetectionResult.Faces.Count > 0)
+                {
+                    <ul>
+                        @foreach (var face in DetectionResult.Faces)
+                        {
+                            if (face.Landmarks.Count > 4)
+                            {
+                                var noseTip = face.Landmarks[4];
+                                int nx = (int)(noseTip.X * 100);
+                                int ny = (int)(noseTip.Y * 100);
+                                <li>
+                                    Face @face.Index &mdash; nose tip at [@nx%, @ny%] &mdash; @face.Landmarks.Count landmarks
+                                </li>
+                            }
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div>I don&rsquo;t see any faces.</div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    public FaceMeshResult? DetectionResult { get; set; }
+}

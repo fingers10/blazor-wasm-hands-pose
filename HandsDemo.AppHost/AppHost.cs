@@ -31,6 +31,10 @@ attendanceWeb
 var handsWeb = builder.AddProject<Projects.HandsDemo>("Hands-Web")
     .WithUrlForEndpoint("https", u => u.DisplayText = "Hands Demo")
     .WithBrowserLogs();
+
+var faceMeshWeb = builder.AddProject<Projects.FaceMeshDemo>("FaceMesh-Web")
+    .WithUrlForEndpoint("https", u => u.DisplayText = "Face Mesh Demo")
+    .WithBrowserLogs();
 #pragma warning restore ASPIREBROWSERLOGS001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 // ── Fingerprint / WebAuthn demo ───────────────────────────────────────────────

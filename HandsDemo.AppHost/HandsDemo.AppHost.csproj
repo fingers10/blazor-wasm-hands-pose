@@ -6,6 +6,7 @@
     <ProjectReference Include="..\AttendanceApi\AttendanceApi.csproj" />
     <ProjectReference Include="..\FingerprintDemo\FingerprintDemo.csproj" />
     <ProjectReference Include="..\FingerprintApi\FingerprintApi.csproj" />
+    <ProjectReference Include="..\FaceMeshDemo\FaceMeshDemo.csproj" />
   </ItemGroup>
 
   <ItemGroup>
